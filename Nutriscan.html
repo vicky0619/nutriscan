@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriScan | Retro Food Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+        
+        :root {
+            --retro-pink: #ff85a2;
+            --retro-blue: #85d3ff;
+            --retro-yellow: #fff685;
+            --retro-green: #85ffb6;
+            --retro-purple: #d685ff;
+            --retro-bg: #1a1a2e;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background-color: var(--retro-bg);
+            color: white;
+            letter-spacing: 1px;
+        }
+        
+        .retro-title {
+            font-family: 'Press Start 2P', cursive;
+            text-shadow: 4px 4px 0 var(--retro-pink);
+        }
+        
+        .retro-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid white;
+            box-shadow: 8px 8px 0 var(--retro-purple);
+            transition: all 0.3s ease;
+        }
+        
+        .retro-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 12px 12px 0 var(--retro-purple);
+        }
+        
+        .retro-btn {
+            border: 2px solid white;
+            box-shadow: 4px 4px 0 var(--retro-blue);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .retro-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--retro-blue);
+        }
+        
+        .retro-btn:active {
+            transform: translate(0, 0);
+            box-shadow: 2px 2px 0 var(--retro-blue);
+        }
+        
+        .retro-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        .retro-btn:hover::before {
+            left: 100%;
+        }
+        
+        .pixel-border {
+            border: 2px solid white;
+            position: relative;
+        }
+        
+        .pixel-border::before, .pixel-border::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--retro-pink);
+        }
+        
+        .pixel-border::before {
+            top: -5px;
+            left: -5px;
+        }
+        
+        .pixel-border::after {
+            bottom: -5px;
+            right: -5px;
+        }
+        
+        .nutri-badge {
+            border-radius: 0;
+            border: 1px solid white;
+            font-size: 0.8rem;
+        }
+        
+        .scanning-animation {
+            animation: scanning 2s infinite;
+        }
+        
+        @keyframes scanning {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        
+        .tab-active {
+            border-bottom: 3px solid var(--retro-yellow);
+        }
+        
+        /* Retro CRT screen effect */
+        .crt::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+        
+        .crt {
+            position: relative;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8 crt">
+        <!-- Header -->
+        <header class="mb-12 text-center">
+            <h1 class="retro-title text-5xl md:text-6xl mb-4 text-white">NutriScan</h1>
+            <p class="text-xl text-retro-blue">📟 Scan your food. Track your nutrients. Retro style. 🍔</p>
+            <!-- Add settings button -->
+            <button id="settings-btn" class="mt-4 text-retro-blue hover:text-retro-pink transition-colors">
+                <i class="fas fa-cog text-2xl"></i>
+            </button>
+        </header>
+        
+        <!-- Main App -->
+        <div class="max-w-4xl mx-auto">
+            <!-- Tabs Navigation -->
+            <div class="flex border-b border-gray-700 mb-8">
+                <button id="scan-tab" class="tab-active px-6 py-3 text-xl font-bold text-white mr-2 focus:outline-none">
+                    <i class="fas fa-camera mr-2"></i>Scan Food
+                </button>
+                <button id="diary-tab" class="px-6 py-3 text-xl font-bold text-gray-400 mr-2 focus:outline-none hover:text-white">
+                    <i class="fas fa-book mr-2"></i>Nutrition Diary
+                </button>
+                <button id="history-tab" class="px-6 py-3 text-xl font-bold text-gray-400 focus:outline-none hover:text-white">
+                    <i class="fas fa-history mr-2"></i>History
+                </button>
+            </div>
+            
+            <!-- Scan Food Tab -->
+            <div id="scan-content" class="retro-card p-6 mb-8">
+                <h2 class="text-3xl mb-6 text-retro-yellow font-bold"><i class="fas fa-camera-retro mr-2"></i>Scan Your Meal</h2>
+                
+                <div class="flex flex-col md:flex-row gap-8">
+                    <!-- Image Capture/Upload -->
+                    <div class="w-full md:w-1/2">
+                        <div class="mb-4">
+                            <div class="relative h-64 bg-gray-800 border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center" id="image-container">
+                                <img id="preview-image" class="hidden h-full w-full object-cover rounded-lg" />
+                                <div id="placeholder-content" class="text-center p-4">
+                                    <i class="fas fa-utensils text-4xl mb-3 text-gray-400"></i>
+                                    <p class="text-gray-400 mb-4">Take a photo or upload an image of your food</p>
+                                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                                        <button id="capture-btn" class="retro-btn bg-retro-blue text-black px-4 py-2 rounded-none font-bold">
+                                            <i class="fas fa-camera mr-2"></i>Take Photo
+                                        </button>
+                                        <button id="upload-btn" class="retro-btn bg-retro-green text-black px-4 py-2 rounded-none font-bold">
+                                            <i class="fas fa-upload mr-2"></i>Upload Image
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="file" id="file-input" accept="image/*" class="hidden" />
+                        </div>
+                        
+                        <div class="flex items-center mb-4">
+                            <div class="flex-1 h-1 bg-gray-700"></div>
+                            <span class="px-3 text-gray-400">OR</span>
+                            <div class="flex-1 h-1 bg-gray-700"></div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-300 mb-2">Describe your meal manually:</label>
+                            <div class="flex">
+                                <input type="text" id="manual-input" placeholder="e.g. Chicken sandwich with fries" 
+                                    class="flex-1 bg-gray-800 border-2 border-gray-700 text-white px-4 py-2 rounded-none focus:outline-none focus:border-retro-yellow" />
+                                <button id="manual-submit" class="retro-btn bg-retro-purple text-black px-4 py-2 rounded-none font-bold ml-2">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Analysis Results -->
+                    <div class="w-full md:w-1/2">
+                        <div class="bg-gray-900 p-4 border-2 border-gray-700 h-full">
+                            <h3 class="text-2xl mb-4 text-retro-pink font-bold"><i class="fas fa-flask mr-2"></i>Nutrition Analysis</h3>
+                            
+                            <div id="analysis-placeholder" class="text-center py-8">
+                                <i class="fas fa-microscope text-4xl mb-3 text-gray-500"></i>
+                                <p class="text-gray-500">Your food analysis will appear here</p>
+                            </div>
+                            
+                            <div id="analysis-results" class="hidden">
+                                <div class="mb-4">
+                                    <h4 id="food-name" class="text-xl font-bold text-retro-green mb-2"></h4>
+                                    <p id="food-description" class="text-gray-300 mb-3"></p>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-3 mb-4">
+                                    <div class="bg-gray-800 p-3 border-l-4 border-retro-yellow">
+                                        <div class="text-gray-400">Calories</div>
+                                        <div id="calories" class="text-2xl font-bold text-white"></div>
+                                    </div>
+                                    <div class="bg-gray-800 p-3 border-l-4 border-retro-blue">
+                                        <div class="text-gray-400">Protein</div>
+                                        <div id="protein" class="text-2xl font-bold text-white"></div>
+                                    </div>
+                                    <div class="bg-gray-800 p-3 border-l-4 border-retro-pink">
+                                        <div class="text-gray-400">Carbs</div>
+                                        <div id="carbs" class="text-2xl font-bold text-white"></div>
+                                    </div>
+                                    <div class="bg-gray-800 p-3 border-l-4 border-retro-green">
+                                        <div class="text-gray-400">Fat</div>
+                                        <div id="fat" class="text-2xl font-bold text-white"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="block text-gray-300 mb-1">Serving Size:</label>
+                                    <input type="text" id="serving-size" value="1 serving" 
+                                        class="w-full bg-gray-800 border-2 border-gray-700 text-white px-3 py-1 rounded-none focus:outline-none focus:border-retro-yellow" />
+                                </div>
+                                
+                                <button id="save-analysis" class="retro-btn bg-retro-yellow text-black w-full py-2 rounded-none font-bold mt-2">
+                                    <i class="fas fa-save mr-2"></i>Save to Diary
+                                </button>
+                            </div>
+                            
+                            <div id="scanning-animation" class="hidden text-center py-8">
+                                <div class="scanning-animation inline-block">
+                                    <i class="fas fa-atom text-4xl mb-3 text-retro-blue"></i>
+                                    <p class="text-retro-blue">Analyzing your food...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Nutrition Diary Tab -->
+            <div id="diary-content" class="hidden retro-card p-6 mb-8">
+                <h2 class="text-3xl mb-6 text-retro-yellow font-bold"><i class="fas fa-book-medical mr-2"></i>Nutrition Diary</h2>
+                
+                <div class="mb-6">
+                    <div class="flex items-center mb-4">
+                        <label for="diary-date" class="text-gray-300 mr-3">Select Date:</label>
+                        <input type="date" id="diary-date" class="bg-gray-800 border-2 border-gray-700 text-white px-3 py-1 rounded-none focus:outline-none focus:border-retro-yellow" />
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-gray-900 p-4 border-2 border-retro-blue">
+                            <div class="text-gray-400">Total Calories</div>
+                            <div id="total-calories" class="text-3xl font-bold text-white">0</div>
+                        </div>
+                        <div class="bg-gray-900 p-4 border-2 border-retro-green">
+                            <div class="text-gray-400">Protein (g)</div>
+                            <div id="total-protein" class="text-3xl font-bold text-white">0</div>
+                        </div>
+                        <div class="bg-gray-900 p-4 border-2 border-retro-pink">
+                            <div class="text-gray-400">Carbs (g)</div>
+                            <div id="total-carbs" class="text-3xl font-bold text-white">0</div>
+                        </div>
+                        <div class="bg-gray-900 p-4 border-2 border-retro-yellow">
+                            <div class="text-gray-400">Fat (g)</div>
+                            <div id="total-fat" class="text-3xl font-bold text-white">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-900 p-4 border-2 border-gray-700">
+                        <h3 class="text-xl mb-3 text-retro-purple font-bold"><i class="fas fa-chart-pie mr-2"></i>Macronutrient Distribution</h3>
+                        <div id="macros-chart" class="h-48 flex items-center justify-center text-gray-500">
+                            <p>No data available for selected date</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl mb-3 text-retro-blue font-bold"><i class="fas fa-utensils mr-2"></i>Today's Meals</h3>
+                <div id="diary-entries" class="space-y-4">
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-book-open text-3xl mb-2"></i>
+                        <p>No meals recorded for today</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- History Tab -->
+            <div id="history-content" class="hidden retro-card p-6 mb-8">
+                <h2 class="text-3xl mb-6 text-retro-yellow font-bold"><i class="fas fa-history mr-2"></i>Scan History</h2>
+                
+                <div class="mb-4">
+                    <div class="flex items-center">
+                        <label for="history-search" class="text-gray-300 mr-3"><i class="fas fa-search mr-1"></i>Search:</label>
+                        <input type="text" id="history-search" placeholder="Search foods..." 
+                            class="flex-1 bg-gray-800 border-2 border-gray-700 text-white px-3 py-1 rounded-none focus:outline-none focus:border-retro-yellow" />
+                    </div>
+                </div>
+                
+                <div id="history-entries" class="space-y-4">
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-clock-rotate-left text-3xl mb-2"></i>
+                        <p>No scan history available</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Webcam Modal -->
+    <div id="webcam-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border-2 border-retro-blue max-w-2xl w-full p-6 relative">
+            <button id="close-webcam" class="absolute top-2 right-2 text-white text-2xl hover:text-retro-pink">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <h3 class="text-2xl mb-4 text-retro-yellow font-bold"><i class="fas fa-camera mr-2"></i>Take a Photo</h3>
+            
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="w-full md:w-2/3">
+                    <div class="relative bg-black aspect-video mb-4">
+                        <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
+                        <canvas id="webcam-canvas" class="hidden"></canvas>
+                    </div>
+                    
+                    <button id="capture-photo" class="retro-btn bg-retro-blue text-black w-full py-2 rounded-none font-bold">
+                        <i class="fas fa-camera mr-2"></i>Capture Photo
+                    </button>
+                </div>
+                
+                <div class="w-full md:w-1/3">
+                    <div class="bg-gray-800 p-4 border-2 border-gray-700 h-full flex flex-col">
+                        <h4 class="text-lg mb-3 text-retro-pink font-bold">Preview</h4>
+                        <div id="photo-preview" class="flex-1 bg-black flex items-center justify-center mb-3">
+                            <p class="text-gray-500 text-center">Your captured photo will appear here</p>
+                        </div>
+                        <button id="use-photo" class="retro-btn bg-retro-green text-black w-full py-2 rounded-none font-bold hidden">
+                            <i class="fas fa-check mr-2"></i>Use This Photo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // DOM Elements
+        const scanTab = document.getElementById('scan-tab');
+        const diaryTab = document.getElementById('diary-tab');
+        const historyTab = document.getElementById('history-tab');
+        const scanContent = document.getElementById('scan-content');
+        const diaryContent = document.getElementById('diary-content');
+        const historyContent = document.getElementById('history-content');
+        
+        const captureBtn = document.getElementById('capture-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const fileInput = document.getElementById('file-input');
+        const previewImage = document.getElementById('preview-image');
+        const placeholderContent = document.getElementById('placeholder-content');
+        const imageContainer = document.getElementById('image-container');
+        
+        const manualInput = document.getElementById('manual-input');
+        const manualSubmit = document.getElementById('manual-submit');
+        
+        const analysisPlaceholder = document.getElementById('analysis-placeholder');
+        const analysisResults = document.getElementById('analysis-results');
+        const scanningAnimation = document.getElementById('scanning-animation');
+        const saveAnalysis = document.getElementById('save-analysis');
+        
+        const webcamModal = document.getElementById('webcam-modal');
+        const closeWebcam = document.getElementById('close-webcam');
+        const webcam = document.getElementById('webcam');
+        const webcamCanvas = document.getElementById('webcam-canvas');
+        const capturePhoto = document.getElementById('capture-photo');
+        const photoPreview = document.getElementById('photo-preview');
+        const usePhoto = document.getElementById('use-photo');
+        
+        const diaryDate = document.getElementById('diary-date');
+        const diaryEntries = document.getElementById('diary-entries');
+        const historySearch = document.getElementById('history-search');
+        const historyEntries = document.getElementById('history-entries');
+        
+        // Tab switching
+        scanTab.addEventListener('click', () => switchTab('scan'));
+        diaryTab.addEventListener('click', () => switchTab('diary'));
+        historyTab.addEventListener('click', () => switchTab('history'));
+        
+        function switchTab(tab) {
+            scanContent.classList.add('hidden');
+            diaryContent.classList.add('hidden');
+            historyContent.classList.add('hidden');
+            
+            scanTab.classList.remove('tab-active');
+            diaryTab.classList.remove('tab-active');
+            historyTab.classList.remove('tab-active');
+            
+            switch(tab) {
+                case 'scan':
+                    scanContent.classList.remove('hidden');
+                    scanTab.classList.add('tab-active');
+                    break;
+                case 'diary':
+                    diaryContent.classList.remove('hidden');
+                    diaryTab.classList.add('tab-active');
+                    loadDiary();
+                    break;
+                case 'history':
+                    historyContent.classList.remove('hidden');
+                    historyTab.classList.add('tab-active');
+                    loadHistory();
+                    break;
+            }
+        }
+        
+        // Set today's date as default for diary
+        const today = new Date().toISOString().split('T')[0];
+        diaryDate.value = today;
+        
+        // Image upload handling
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewImage.src = event.target.result;
+                    previewImage.classList.remove('hidden');
+                    placeholderContent.classList.add('hidden');
+                    analyzeFood(event.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Webcam handling
+        captureBtn.addEventListener('click', async () => {
+            webcamModal.classList.remove('hidden');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                webcam.srcObject = stream;
+            } catch (err) {
+                console.error("Error accessing webcam:", err);
+                alert("Could not access webcam. Please check permissions.");
+            }
+        });
+        
+        closeWebcam.addEventListener('click', () => {
+            const stream = webcam.srcObject;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                webcam.srcObject = null;
+            }
+            webcamModal.classList.add('hidden');
+            photoPreview.innerHTML = '<p class="text-gray-500 text-center">Your captured photo will appear here</p>';
+            usePhoto.classList.add('hidden');
+        });
+        
+        capturePhoto.addEventListener('click', () => {
+            const context = webcamCanvas.getContext('2d');
+            webcamCanvas.width = webcam.videoWidth;
+            webcamCanvas.height = webcam.videoHeight;
+            context.drawImage(webcam, 0, 0, webcamCanvas.width, webcamCanvas.height);
+            
+            const photoData = webcamCanvas.toDataURL('image/png');
+            
+            photoPreview.innerHTML = `<img src="${photoData}" class="w-full h-full object-contain" />`;
+            usePhoto.classList.remove('hidden');
+            
+            usePhoto.addEventListener('click', () => {
+                previewImage.src = photoData;
+                previewImage.classList.remove('hidden');
+                placeholderContent.classList.add('hidden');
+                
+                const stream = webcam.srcObject;
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    webcam.srcObject = null;
+                }
+                webcamModal.classList.add('hidden');
+                
+                analyzeFood(photoData);
+            }, { once: true });
+        });
+        
+        // Manual input handling
+        manualSubmit.addEventListener('click', () => {
+            const description = manualInput.value.trim();
+            if (description) {
+                analyzeFood(null, description);
+            }
+        });
+        
+        manualInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                manualSubmit.click();
+            }
+        });
+        
+        // Food analysis (mock - replace with actual API call)
+        function analyzeFood(imageData, description = null) {
+            analysisPlaceholder.classList.add('hidden');
+            analysisResults.classList.add('hidden');
+            scanningAnimation.classList.remove('hidden');
+            
+            // Simulate API delay
+            setTimeout(() => {
+                scanningAnimation.classList.add('hidden');
+                analysisResults.classList.remove('hidden');
+                
+                // Mock data - in a real app, this would come from the API
+                let foodName, foodDesc, calories, protein, carbs, fat;
+                
+                if (description) {
+                    // Simple keyword matching for manual input
+                    foodName = description;
+                    foodDesc = `User described: ${description}`;
+                    
+                    if (description.toLowerCase().includes('salad')) {
+                        calories = 150;
+                        protein = 5;
+                        carbs = 10;
+                        fat = 8;
+                    } else if (description.toLowerCase().includes('burger') || description.toLowerCase().includes('cheeseburger')) {
+                        calories = 550;
+                        protein = 25;
+                        carbs = 35;
+                        fat = 30;
+                    } else if (description.toLowerCase().includes('pizza')) {
+                        calories = 285;
+                        protein = 12;
+                        carbs = 36;
+                        fat = 10;
+                    } else if (description.toLowerCase().includes('chicken') && description.toLowerCase().includes('rice')) {
+                        calories = 400;
+                        protein = 35;
+                        carbs = 45;
+                        fat = 8;
+                    } else {
+                        // Default values for unknown foods
+                        calories = Math.floor(Math.random() * 500) + 100;
+                        protein = Math.floor(Math.random() * 30) + 5;
+                        carbs = Math.floor(Math.random() * 60) + 10;
+                        fat = Math.floor(Math.random() * 30) + 5;
+                    }
+                } else {
+                    // Mock responses for images (in a real app, use image recognition API)
+                    const mockFoods = [
+                        { name: "Cheeseburger with Fries", desc: "A juicy cheeseburger with crispy french fries", calories: 750, protein: 28, carbs: 65, fat: 42 },
+                        { name: "Caesar Salad", desc: "Fresh romaine lettuce with Caesar dressing, croutons and parmesan", calories: 350, protein: 12, carbs: 15, fat: 25 },
+                        { name: "Margherita Pizza", desc: "Classic pizza with tomato sauce, mozzarella and basil", calories: 850, protein: 35, carbs: 100, fat: 30 },
+                        { name: "Grilled Chicken with Vegetables", desc: "Lean grilled chicken breast with mixed vegetables", calories: 400, protein: 45, carbs: 20, fat: 12 },
+                        { name: "Pasta Carbonara", desc: "Spaghetti with creamy egg sauce, pancetta and parmesan", calories: 650, protein: 25, carbs: 75, fat: 30 }
+                    ];
+                    
+                    const randomFood = mockFoods[Math.floor(Math.random() * mockFoods.length)];
+                    foodName = randomFood.name;
+                    foodDesc = randomFood.desc;
+                    calories = randomFood.calories;
+                    protein = randomFood.protein;
+                    carbs = randomFood.carbs;
+                    fat = randomFood.fat;
+                }
+                
+                // Update UI with analysis
+                document.getElementById('food-name').textContent = foodName;
+                document.getElementById('food-description').textContent = foodDesc;
+                document.getElementById('calories').textContent = `${calories} kcal`;
+                document.getElementById('protein').textContent = `${protein}g`;
+                document.getElementById('carbs').textContent = `${carbs}g`;
+                document.getElementById('fat').textContent = `${fat}g`;
+                
+                // Store the analysis data on the save button for later
+                saveAnalysis.dataset.foodName = foodName;
+                saveAnalysis.dataset.foodDesc = foodDesc;
+                saveAnalysis.dataset.calories = calories;
+                saveAnalysis.dataset.protein = protein;
+                saveAnalysis.dataset.carbs = carbs;
+                saveAnalysis.dataset.fat = fat;
+                saveAnalysis.dataset.image = imageData || '';
+            }, 2000);
+        }
+        
+        // Save analysis to diary
+        saveAnalysis.addEventListener('click', () => {
+            const foodName = saveAnalysis.dataset.foodName;
+            const foodDesc = saveAnalysis.dataset.foodDesc;
+            const calories = parseInt(saveAnalysis.dataset.calories);
+            const protein = parseInt(saveAnalysis.dataset.protein);
+            const carbs = parseInt(saveAnalysis.dataset.carbs);
+            const fat = parseInt(saveAnalysis.dataset.fat);
+            const image = saveAnalysis.dataset.image;
+            const servingSize = document.getElementById('serving-size').value;
+            const timestamp = new Date().toISOString();
+            
+            // Get existing diary or create new one
+            let diary = JSON.parse(localStorage.getItem('nutriscanDiary')) || {};
+            
+            // Get entries for today or create new array
+            const today = new Date().toISOString().split('T')[0];
+            if (!diary[today]) {
+                diary[today] = [];
+            }
+            
+            // Add new entry
+            const entry = {
+                id: Date.now(),
+                timestamp,
+                foodName,
+                foodDesc,
+                calories,
+                protein,
+                carbs,
+                fat,
+                servingSize,
+                image
+            };
+            
+            diary[today].push(entry);
+            
+            // Save back to localStorage
+            localStorage.setItem('nutriscanDiary', JSON.stringify(diary));
+            
+            // Show success message
+            alert(`${foodName} added to your diary!`);
+            
+            // Reset the form
+            previewImage.src = '';
+            previewImage.classList.add('hidden');
+            placeholderContent.classList.remove('hidden');
+            analysisResults.classList.add('hidden');
+            analysisPlaceholder.classList.remove('hidden');
+            document.getElementById('serving-size').value = '1 serving';
+        });
+        
+        // Load diary entries
+        function loadDiary() {
+            const date = diaryDate.value;
+            const diary = JSON.parse(localStorage.getItem('nutriscanDiary')) || {};
+            const entries = diary[date] || [];
+            
+            // Update totals
+            const totals = entries.reduce((acc, entry) => {
+                acc.calories += entry.calories;
+                acc.protein += entry.protein;
+                acc.carbs += entry.carbs;
+                acc.fat += entry.fat;
+                return acc;
+            }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+            
+            document.getElementById('total-calories').textContent = totals.calories;
+            document.getElementById('total-protein').textContent = totals.protein;
+            document.getElementById('total-carbs').textContent = totals.carbs;
+            document.getElementById('total-fat').textContent = totals.fat;
+            
+            // Update entries list
+            if (entries.length === 0) {
+                diaryEntries.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-book-open text-3xl mb-2"></i>
+                        <p>No meals recorded for this date</p>
+                    </div>
+                `;
+            } else {
+                diaryEntries.innerHTML = entries.map(entry => `
+                    <div class="retro-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        ${entry.image ? `
+                        <div class="w-20 h-20 flex-shrink-0">
+                            <img src="${entry.image}" class="w-full h-full object-cover rounded" />
+                        </div>
+                        ` : `
+                        <div class="w-20 h-20 flex-shrink-0 bg-gray-800 flex items-center justify-center">
+                            <i class="fas fa-utensils text-2xl text-gray-500"></i>
+                        </div>
+                        `}
+                        <div class="flex-1">
+                            <h4 class="text-xl font-bold text-retro-yellow">${entry.foodName}</h4>
+                            <p class="text-gray-400 text-sm mb-2">${entry.servingSize}</p>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="nutri-badge bg-gray-800 px-2 py-1">${entry.calories} kcal</span>
+                                <span class="nutri-badge bg-gray-800 px-2 py-1">Protein: ${entry.protein}g</span>
+                                <span class="nutri-badge bg-gray-800 px-2 py-1">Carbs: ${entry.carbs}g</span>
+                                <span class="nutri-badge bg-gray-800 px-2 py-1">Fat: ${entry.fat}g</span>
+                            </div>
+                        </div>
+                        <button class="delete-entry retro-btn bg-red-900 text-white px-3 py-1 rounded-none" data-id="${entry.id}" data-date="${date}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `).join('');
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-entry').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = parseInt(this.dataset.id);
+                        const date = this.dataset.date;
+                        deleteDiaryEntry(id, date);
+                    });
+                });
+            }
+            
+            // Update chart (mock - in a real app, use a charting library)
+            updateMacrosChart(totals);
+        }
+        
+        // Delete diary entry
+        function deleteDiaryEntry(id, date) {
+            if (confirm('Are you sure you want to delete this entry?')) {
+                const diary = JSON.parse(localStorage.getItem('nutriscanDiary')) || {};
+                if (diary[date]) {
+                    diary[date] = diary[date].filter(entry => entry.id !== id);
+                    localStorage.setItem('nutriscanDiary', JSON.stringify(diary));
+                    loadDiary();
+                }
+            }
+        }
+        
+        // Update macros chart (mock implementation)
+        function updateMacrosChart(totals) {
+            const macrosChart = document.getElementById('macros-chart');
+            const totalMacros = totals.protein + totals.carbs + totals.fat;
+            
+            if (totalMacros === 0) {
+                macrosChart.innerHTML = '<p class="text-gray-500">No data available for selected date</p>';
+                return;
+            }
+            
+            // Calculate percentages
+            const proteinPercent = Math.round((totals.protein * 4 / totals.calories) * 100) || 0;
+            const carbsPercent = Math.round((totals.carbs * 4 / totals.calories) * 100) || 0;
+            const fatPercent = Math.round((totals.fat * 9 / totals.calories) * 100) || 0;
+            
+            // Create a simple text-based chart
+            macrosChart.innerHTML = `
+                <div class="w-full">
+                    <div class="flex items-center mb-2">
+                        <div class="w-4 h-4 bg-retro-green mr-2"></div>
+                        <span>Protein: ${proteinPercent}%</span>
+                    </div>
+                    <div class="flex items-center mb-2">
+                        <div class="w-4 h-4 bg-retro-pink mr-2"></div>
+                        <span>Carbs: ${carbsPercent}%</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 bg-retro-yellow mr-2"></div>
+                        <span>Fat: ${fatPercent}%</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Load history entries
+        function loadHistory() {
+            const diary = JSON.parse(localStorage.getItem('nutriscanDiary')) || {};
+            const searchTerm = historySearch.value.toLowerCase();
+            
+            // Flatten all entries from all dates
+            let allEntries = [];
+            for (const date in diary) {
+                allEntries = allEntries.concat(diary[date].map(entry => ({ ...entry, date })));
+            }
+            
+            // Sort by timestamp (newest first)
+            allEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            // Filter by search term if provided
+            if (searchTerm) {
+                allEntries = allEntries.filter(entry => 
+                    entry.foodName.toLowerCase().includes(searchTerm) || 
+                    entry.foodDesc.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Update history list
+            if (allEntries.length === 0) {
+                historyEntries.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-clock-rotate-left text-3xl mb-2"></i>
+                        <p>No scan history available</p>
+                    </div>
+                `;
+            } else {
+                historyEntries.innerHTML = allEntries.map(entry => `
+                    <div class="retro-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        ${entry.image ? `
+                        <div class="w-20 h-20 flex-shrink-0">
+                            <img src="${entry.image}" class="w-full h-full object-cover rounded" />
+                        </div>
+                        ` : `
+                        <div class="w-20 h-20 flex-shrink-0 bg-gray-800 flex items-center justify-center">
+                            <i class="fas fa-utensils text-2xl text-gray-500"></i>
+                        </div>
+                        `}
+                        <div class="flex-1">
+                            <h4 class="text-xl font-bold text-retro-yellow">${entry.foodName}</h4>
+                            <p class="text-gray-400 text-sm mb-1">${new Date(entry.timestamp).toLocaleString()}</p>
+                            <p class="text-gray-400 text-sm mb-2">${entry.servingSize}</p>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="nutri-badge bg-gray-800 px-2 py-1">${entry.calories} kcal</span>
+                                <span class="nutri-badge bg-gray-800 px-2 py-1">Protein: ${entry.protein}g</span>
+                                <span class="nutri-badge bg-gray-800 px-2 py-1">Carbs: ${entry.carbs}g</span>
+                                <span class="nutri-badge bg-gray-800 px-2 py-1">Fat: ${entry.fat}g</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        // Event listeners for diary date change and history search
+        diaryDate.addEventListener('change', loadDiary);
+        historySearch.addEventListener('input', loadHistory);
+        
+        // Initialize with scan tab
+        switchTab('scan');
+    </script>
+</body>
+</html>
