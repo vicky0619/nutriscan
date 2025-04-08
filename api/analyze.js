@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     `;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -43,7 +43,10 @@ export default async function handler(req, res) {
     }
     
     try {
-      const result = JSON.parse(text);
+      const match = text.match(/{[\s\S]+}/);
+      if (!match) throw new Error("找不到 JSON 區塊");
+
+      const result = JSON.parse(match[0]);
       return res.status(200).json(result);
     } catch (err) {
       console.error("JSON parse failed:", err);
