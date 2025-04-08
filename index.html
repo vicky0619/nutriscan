@@ -538,13 +538,13 @@
                     const res = await fetch("/api/analyze", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            description: description || "這是一張食物照片"  // 目前只處理文字輸入
-                        })
+                        body: JSON.stringify({ description, imageData })
                     });
 
                     const result = await res.json();
-
+                    if (!result || result.error) {
+                        throw new Error(result.error || "分析失敗");
+                    }
                     document.getElementById('food-name').textContent = result.foodName;
                     document.getElementById('food-description').textContent = description || "（由圖片分析）";
                     document.getElementById('calories').textContent = result.calories + " kcal";
