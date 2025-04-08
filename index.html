@@ -511,7 +511,7 @@
         });
         
         // Manual input handling
-        manualSubmit.addEventListener('click', () => {
+        manualSubmit.addEventListener('click', async () => {
             const description = manualInput.value.trim();
             if (description) {
                 analyzeFood(null, description);
@@ -525,16 +525,52 @@
         });
         
         // Food analysis (mock - replace with actual API call)
-        function analyzeFood(imageData, description = null) {
+        async function analyzeFood(imageData, description = null) {
             analysisPlaceholder.classList.add('hidden');
             analysisResults.classList.add('hidden');
             scanningAnimation.classList.remove('hidden');
             
             // Simulate API delay
-            setTimeout(() => {
+            setTimeout(async () => {
                 scanningAnimation.classList.add('hidden');
                 analysisResults.classList.remove('hidden');
-                
+                try {
+                    const res = await fetch("/api/analyze", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            description: description || "這是一張食物照片"  // 目前只處理文字輸入
+                        })
+                    });
+
+                    const result = await res.json();
+
+                    document.getElementById('food-name').textContent = result.foodName;
+                    document.getElementById('food-description').textContent = description || "（由圖片分析）";
+                    document.getElementById('calories').textContent = result.calories + " kcal";
+                    document.getElementById('protein').textContent = result.protein + "g";
+                    document.getElementById('carbs').textContent = result.carbs + "g";
+                    document.getElementById('fat').textContent = result.fat + "g";
+
+                    Object.assign(saveAnalysis.dataset, {
+                        foodName: result.foodName,
+                        foodDesc: description || "由圖片分析",
+                        calories: result.calories,
+                        protein: result.protein,
+                        carbs: result.carbs,
+                        fat: result.fat,
+                        image: imageData || ""
+                    });
+
+                    analysisResults.classList.remove('hidden');
+                } catch (err) {
+                    console.error("分析失敗：", err);
+                    alert("AI 分析失敗，請稍後再試！");
+                }
+
+                scanningAnimation.classList.add('hidden');
+            
+                /*
                 // Mock data - in a real app, this would come from the API
                 let foodName, foodDesc, calories, protein, carbs, fat;
                 
@@ -588,7 +624,7 @@
                     carbs = randomFood.carbs;
                     fat = randomFood.fat;
                 }
-                
+                */
                 // Update UI with analysis
                 document.getElementById('food-name').textContent = foodName;
                 document.getElementById('food-description').textContent = foodDesc;
