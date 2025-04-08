@@ -454,7 +454,7 @@
                     previewImage.src = event.target.result;
                     previewImage.classList.remove('hidden');
                     placeholderContent.classList.add('hidden');
-                    analyzeFood(event.target.result);
+                    analyzeFood(base64Image, null);
                 };
                 reader.readAsDataURL(file);
             }
@@ -506,7 +506,7 @@
                 }
                 webcamModal.classList.add('hidden');
                 
-                analyzeFood(photoData);
+                analyzeFood(photoData, null);
             }, { once: true });
         });
         
