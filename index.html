@@ -406,6 +406,8 @@
         const diaryEntries = document.getElementById('diary-entries');
         const historySearch = document.getElementById('history-search');
         const historyEntries = document.getElementById('history-entries');
+
+        const API_BASE_URL = 'http://localhost:3000/api';
         
         // Tab switching
         scanTab.addEventListener('click', () => switchTab('scan'));
@@ -530,170 +532,233 @@
             analysisResults.classList.add('hidden');
             scanningAnimation.classList.remove('hidden');
         
-            // 如果有圖片資料，移除 base64 前綴
-            if (imageData) {
-                imageData = imageData.replace(/^data:image\/(png|jpeg);base64,/, '');
-            }
-        
-            fetch('/api/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ description, imageData }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-        
-                    // 更新 UI
+            // The /api/analyze endpoint is a placeholder for Gemini, not part of the CRUD backend.
+            // We simulate its behavior for now.
+            // If imageData exists, it's already a base64 string from webcam or file reader.
+            
+            console.log("Simulating call to /api/analyze with:", { description, hasImage: !!imageData });
+            setTimeout(() => {
+                try {
+                    // Mocked data - in a real scenario, this comes from an /api/analyze (Gemini) endpoint
+                    const data = {
+                        foodName: description || (imageData ? "Scanned Food Item" : "Manually Entered Item"),
+                        calories: Math.floor(Math.random() * 500) + 100, // Random calories
+                        protein: Math.floor(Math.random() * 30) + 5,    // Random protein
+                        carbs: Math.floor(Math.random() * 50) + 10,      // Random carbs
+                        fat: Math.floor(Math.random() * 20) + 5,        // Random fat
+                        // description: description || "A delicious meal" 
+                    };
+
+                    // Update UI
                     document.getElementById('food-name').textContent = data.foodName;
+                    // document.getElementById('food-description').textContent = data.description; // If you have this element
                     document.getElementById('calories').textContent = `${data.calories} kcal`;
                     document.getElementById('protein').textContent = `${data.protein}g`;
                     document.getElementById('carbs').textContent = `${data.carbs}g`;
                     document.getElementById('fat').textContent = `${data.fat}g`;
+
+                    // Populate dataset for saveAnalysis
+                    saveAnalysis.dataset.foodName = data.foodName;
+                    saveAnalysis.dataset.calories = data.calories;
+                    saveAnalysis.dataset.protein = data.protein;
+                    saveAnalysis.dataset.carbs = data.carbs;
+                    saveAnalysis.dataset.fat = data.fat;
+                    // Store the image data (base64 string) in the dataset if it exists
+                    // Ensure previewImage.src is used if imageData is null but an image was uploaded/captured previously
+                    if (imageData) {
+                        saveAnalysis.dataset.image = imageData;
+                    } else if (previewImage.src && previewImage.src.startsWith('data:image')) {
+                        saveAnalysis.dataset.image = previewImage.src;
+                    } else {
+                        saveAnalysis.dataset.image = ""; // No image or not a data URL
+                    }
         
                     analysisResults.classList.remove('hidden');
-                })
-                .catch(error => {
-                    console.error('分析失敗：', error);
-                    alert('分析失敗，請稍後再試！');
-                })
-                .finally(() => {
+                } catch (error) {
+                    console.error('Analysis simulation failed:', error);
+                    alert('Analysis simulation failed. Please try again.');
+                    analysisPlaceholder.classList.remove('hidden'); // Show placeholder again on error
+                } finally {
                     scanningAnimation.classList.add('hidden');
-                });
+                }
+            }, 1500); // Simulate network delay
         }
         
         // Save analysis to diary
-        saveAnalysis.addEventListener('click', () => {
+        saveAnalysis.addEventListener('click', async () => {
             const foodName = saveAnalysis.dataset.foodName;
-            const foodDesc = saveAnalysis.dataset.foodDesc;
+            // const foodDesc = saveAnalysis.dataset.foodDesc; // Not used by backend DiaryEntry schema directly
             const calories = parseInt(saveAnalysis.dataset.calories);
             const protein = parseInt(saveAnalysis.dataset.protein);
             const carbs = parseInt(saveAnalysis.dataset.carbs);
             const fat = parseInt(saveAnalysis.dataset.fat);
-            const image = saveAnalysis.dataset.image;
+            let image = saveAnalysis.dataset.image || ""; // Get image from dataset
+            
             const servingSize = document.getElementById('serving-size').value;
-            const timestamp = new Date().toISOString();
-            
-            // Get existing diary or create new one
-            let diary = JSON.parse(localStorage.getItem('nutriscanDiary')) || {};
-            
-            // Get entries for today or create new array
-            const today = new Date().toISOString().split('T')[0];
-            if (!diary[today]) {
-                diary[today] = [];
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+            if (!foodName || isNaN(calories) || isNaN(protein) || isNaN(carbs) || isNaN(fat)) {
+                alert('Analysis data is incomplete. Please analyze food first.');
+                return;
             }
             
-            // Add new entry
-            const entry = {
-                id: Date.now(),
-                timestamp,
+            const entryData = {
                 foodName,
-                foodDesc,
                 calories,
                 protein,
                 carbs,
                 fat,
                 servingSize,
-                image
+                image: image.startsWith('data:image') ? image : null, // Ensure it's a data URL or null
+                date: today // Backend expects 'date' not 'timestamp' for specific day entry
             };
-            
-            diary[today].push(entry);
-            
-            // Save back to localStorage
-            localStorage.setItem('nutriscanDiary', JSON.stringify(diary));
-            
-            // Show success message
-            alert(`${foodName} added to your diary!`);
-            
-            // Reset the form
-            previewImage.src = '';
-            previewImage.classList.add('hidden');
-            placeholderContent.classList.remove('hidden');
-            analysisResults.classList.add('hidden');
-            analysisPlaceholder.classList.remove('hidden');
-            document.getElementById('serving-size').value = '1 serving';
+
+            try {
+                const response = await fetch(API_BASE_URL + '/diary', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entryData)
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ message: 'Failed to save entry. Unknown server error.' }));
+                    throw new Error(errData.message || `Failed to save entry. Status: ${response.status}`);
+                }
+                const savedEntry = await response.json();
+                
+                alert(`${savedEntry.foodName} added to your diary!`);
+                
+                // Reset the form
+                previewImage.src = '';
+                previewImage.classList.add('hidden');
+                placeholderContent.classList.remove('hidden');
+                analysisResults.classList.add('hidden');
+                analysisPlaceholder.classList.remove('hidden');
+                document.getElementById('serving-size').value = '1 serving';
+                manualInput.value = ''; // Clear manual input field as well
+                // Clear dataset from save button to prevent resubmission of old data
+                Object.keys(saveAnalysis.dataset).forEach(key => delete saveAnalysis.dataset[key]);
+
+
+                // Optionally, if diary tab is active and shows today's date:
+                if (diaryTab.classList.contains('tab-active') && diaryDate.value === today) {
+                    loadDiary();
+                }
+            } catch (error) {
+                console.error('Error saving to diary:', error);
+                alert('Error saving to diary: ' + error.message);
+            }
         });
         
         // Load diary entries
-        function loadDiary() {
+        async function loadDiary() {
             const date = diaryDate.value;
-            const diary = JSON.parse(localStorage.getItem('nutriscanDiary')) || {};
-            const entries = diary[date] || [];
-            
-            // Update totals
-            const totals = entries.reduce((acc, entry) => {
-                acc.calories += entry.calories;
-                acc.protein += entry.protein;
-                acc.carbs += entry.carbs;
-                acc.fat += entry.fat;
-                return acc;
-            }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
-            
-            document.getElementById('total-calories').textContent = totals.calories;
-            document.getElementById('total-protein').textContent = totals.protein;
-            document.getElementById('total-carbs').textContent = totals.carbs;
-            document.getElementById('total-fat').textContent = totals.fat;
-            
-            // Update entries list
-            if (entries.length === 0) {
-                diaryEntries.innerHTML = `
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-book-open text-3xl mb-2"></i>
-                        <p>No meals recorded for this date</p>
-                    </div>
-                `;
-            } else {
-                diaryEntries.innerHTML = entries.map(entry => `
-                    <div class="retro-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        ${entry.image ? `
-                        <div class="w-20 h-20 flex-shrink-0">
-                            <img src="${entry.image}" class="w-full h-full object-cover rounded" />
-                        </div>
-                        ` : `
-                        <div class="w-20 h-20 flex-shrink-0 bg-gray-800 flex items-center justify-center">
-                            <i class="fas fa-utensils text-2xl text-gray-500"></i>
-                        </div>
-                        `}
-                        <div class="flex-1">
-                            <h4 class="text-xl font-bold text-retro-yellow">${entry.foodName}</h4>
-                            <p class="text-gray-400 text-sm mb-2">${entry.servingSize}</p>
-                            <div class="flex flex-wrap gap-2">
-                                <span class="nutri-badge bg-gray-800 px-2 py-1">${entry.calories} kcal</span>
-                                <span class="nutri-badge bg-gray-800 px-2 py-1">Protein: ${entry.protein}g</span>
-                                <span class="nutri-badge bg-gray-800 px-2 py-1">Carbs: ${entry.carbs}g</span>
-                                <span class="nutri-badge bg-gray-800 px-2 py-1">Fat: ${entry.fat}g</span>
-                            </div>
-                        </div>
-                        <button class="delete-entry retro-btn bg-red-900 text-white px-3 py-1 rounded-none" data-id="${entry.id}" data-date="${date}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                `).join('');
-                
-                // Add event listeners to delete buttons
-                document.querySelectorAll('.delete-entry').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const id = parseInt(this.dataset.id);
-                        const date = this.dataset.date;
-                        deleteDiaryEntry(id, date);
-                    });
-                });
+            if (!date) {
+                console.warn('No date selected for diary.');
+                diaryEntries.innerHTML = `<div class="text-center py-8 text-gray-500"><p>Please select a date to view entries.</p></div>`;
+                // Reset totals and chart if no date is selected
+                document.getElementById('total-calories').textContent = '0';
+                document.getElementById('total-protein').textContent = '0';
+                document.getElementById('total-carbs').textContent = '0';
+                document.getElementById('total-fat').textContent = '0';
+                updateMacrosChart({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+                return;
             }
+
+            try {
+                const response = await fetch(API_BASE_URL + '/diary/' + date);
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ message: `Failed to fetch diary entries. Status: ${response.status}` }));
+                    throw new Error(errData.message);
+                }
+                const entries = await response.json();
             
-            // Update chart (mock - in a real app, use a charting library)
-            updateMacrosChart(totals);
+                const totals = entries.reduce((acc, entry) => {
+                    acc.calories += Number(entry.calories) || 0;
+                    acc.protein += Number(entry.protein) || 0;
+                    acc.carbs += Number(entry.carbs) || 0;
+                    acc.fat += Number(entry.fat) || 0;
+                    return acc;
+                }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+            
+                document.getElementById('total-calories').textContent = totals.calories;
+                document.getElementById('total-protein').textContent = totals.protein;
+                document.getElementById('total-carbs').textContent = totals.carbs;
+                document.getElementById('total-fat').textContent = totals.fat;
+            
+                if (entries.length === 0) {
+                    diaryEntries.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-book-open text-3xl mb-2"></i>
+                            <p>No meals recorded for this date</p>
+                        </div>
+                    `;
+                } else {
+                    diaryEntries.innerHTML = entries.map(entry => `
+                        <div class="retro-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4" data-entry-id="${entry._id}">
+                            ${entry.image && entry.image.startsWith('data:image') ? `
+                            <div class="w-20 h-20 flex-shrink-0">
+                                <img src="${entry.image}" class="w-full h-full object-cover rounded" alt="${entry.foodName}"/>
+                            </div>
+                            ` : `
+                            <div class="w-20 h-20 flex-shrink-0 bg-gray-800 flex items-center justify-center rounded">
+                                <i class="fas fa-utensils text-2xl text-gray-500"></i>
+                            </div>
+                            `}
+                            <div class="flex-1">
+                                <h4 class="text-xl font-bold text-retro-yellow">${entry.foodName}</h4>
+                                <p class="text-gray-400 text-sm mb-2">${entry.servingSize || '1 serving'}</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="nutri-badge bg-gray-800 px-2 py-1">${entry.calories} kcal</span>
+                                    <span class="nutri-badge bg-gray-800 px-2 py-1">Protein: ${entry.protein}g</span>
+                                    <span class="nutri-badge bg-gray-800 px-2 py-1">Carbs: ${entry.carbs}g</span>
+                                    <span class="nutri-badge bg-gray-800 px-2 py-1">Fat: ${entry.fat}g</span>
+                                </div>
+                            </div>
+                            <button class="delete-entry retro-btn bg-red-900 text-white px-3 py-1 rounded-none" data-id="${entry._id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `).join('');
+                    
+                    document.querySelectorAll('.delete-entry').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const id = this.dataset.id;
+                            // The 'date' parameter is no longer needed for deleteDiaryEntry itself,
+                            // as loadDiary() will refresh based on the current diaryDate.value
+                            deleteDiaryEntry(id);
+                        });
+                    });
+                }
+                updateMacrosChart(totals);
+            } catch (error) {
+                console.error('Error loading diary:', error);
+                diaryEntries.innerHTML = `<div class="text-center py-8 text-red-400"><p>Error loading diary: ${error.message}</p></div>`;
+                document.getElementById('total-calories').textContent = '0';
+                document.getElementById('total-protein').textContent = '0';
+                document.getElementById('total-carbs').textContent = '0';
+                document.getElementById('total-fat').textContent = '0';
+                updateMacrosChart({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+            }
         }
         
         // Delete diary entry
-        function deleteDiaryEntry(id, date) {
+        async function deleteDiaryEntry(id) {
             if (confirm('Are you sure you want to delete this entry?')) {
-                const diary = JSON.parse(localStorage.getItem('nutriscanDiary')) || {};
-                if (diary[date]) {
-                    diary[date] = diary[date].filter(entry => entry.id !== id);
-                    localStorage.setItem('nutriscanDiary', JSON.stringify(diary));
-                    loadDiary();
+                try {
+                    const response = await fetch(API_BASE_URL + '/diary/' + id, {
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({ message: `Failed to delete entry. Status: ${response.status}` }));
+                        throw new Error(errData.message);
+                    }
+                    // const result = await response.json(); // Backend sends { message: 'Diary entry deleted successfully', _id: id }
+                    // alert(result.message); // Optional: show success message from API
+                    loadDiary(); // Refresh the diary view for the current date
+                } catch (error) {
+                    console.error('Error deleting diary entry:', error);
+                    alert('Error deleting entry: ' + error.message);
                 }
             }
         }
@@ -733,60 +798,60 @@
         }
         
         // Load history entries
-        function loadHistory() {
-            const diary = JSON.parse(localStorage.getItem('nutriscanDiary')) || {};
-            const searchTerm = historySearch.value.toLowerCase();
-            
-            // Flatten all entries from all dates
-            let allEntries = [];
-            for (const date in diary) {
-                allEntries = allEntries.concat(diary[date].map(entry => ({ ...entry, date })));
-            }
-            
-            // Sort by timestamp (newest first)
-            allEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
-            // Filter by search term if provided
-            if (searchTerm) {
-                allEntries = allEntries.filter(entry => 
-                    entry.foodName.toLowerCase().includes(searchTerm) || 
-                    entry.foodDesc.toLowerCase().includes(searchTerm)
-                );
-            }
-            
-            // Update history list
-            if (allEntries.length === 0) {
-                historyEntries.innerHTML = `
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-clock-rotate-left text-3xl mb-2"></i>
-                        <p>No scan history available</p>
-                    </div>
-                `;
-            } else {
-                historyEntries.innerHTML = allEntries.map(entry => `
-                    <div class="retro-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        ${entry.image ? `
-                        <div class="w-20 h-20 flex-shrink-0">
-                            <img src="${entry.image}" class="w-full h-full object-cover rounded" />
+        async function loadHistory() {
+            const searchTerm = historySearch.value.toLowerCase().trim();
+            try {
+                const response = await fetch(API_BASE_URL + '/history');
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ message: `Failed to fetch history. Status: ${response.status}` }));
+                    throw new Error(errData.message);
+                }
+                let entries = await response.json(); // Already sorted by timestamp desc by backend
+
+                // Filter by search term if provided (client-side filtering)
+                if (searchTerm) {
+                    entries = entries.filter(entry => 
+                        (entry.foodName && entry.foodName.toLowerCase().includes(searchTerm)) ||
+                        (entry.date && entry.date.includes(searchTerm)) // Allow searching by date string
+                    );
+                }
+                
+                if (entries.length === 0) {
+                    historyEntries.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-clock-rotate-left text-3xl mb-2"></i>
+                            <p>${searchTerm ? 'No history entries match your search.' : 'No scan history available.'}</p>
                         </div>
-                        ` : `
-                        <div class="w-20 h-20 flex-shrink-0 bg-gray-800 flex items-center justify-center">
-                            <i class="fas fa-utensils text-2xl text-gray-500"></i>
-                        </div>
-                        `}
-                        <div class="flex-1">
-                            <h4 class="text-xl font-bold text-retro-yellow">${entry.foodName}</h4>
-                            <p class="text-gray-400 text-sm mb-1">${new Date(entry.timestamp).toLocaleString()}</p>
-                            <p class="text-gray-400 text-sm mb-2">${entry.servingSize}</p>
-                            <div class="flex flex-wrap gap-2">
-                                <span class="nutri-badge bg-gray-800 px-2 py-1">${entry.calories} kcal</span>
-                                <span class="nutri-badge bg-gray-800 px-2 py-1">Protein: ${entry.protein}g</span>
-                                <span class="nutri-badge bg-gray-800 px-2 py-1">Carbs: ${entry.carbs}g</span>
-                                <span class="nutri-badge bg-gray-800 px-2 py-1">Fat: ${entry.fat}g</span>
+                    `;
+                } else {
+                    historyEntries.innerHTML = entries.map(entry => `
+                        <div class="retro-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4" data-entry-id="${entry._id}">
+                             ${entry.image && entry.image.startsWith('data:image') ? `
+                            <div class="w-20 h-20 flex-shrink-0">
+                                <img src="${entry.image}" class="w-full h-full object-cover rounded" alt="${entry.foodName}"/>
+                            </div>
+                            ` : `
+                            <div class="w-20 h-20 flex-shrink-0 bg-gray-800 flex items-center justify-center rounded">
+                                <i class="fas fa-utensils text-2xl text-gray-500"></i>
+                            </div>
+                            `}
+                            <div class="flex-1">
+                                <h4 class="text-xl font-bold text-retro-yellow">${entry.foodName}</h4>
+                                <p class="text-gray-400 text-sm mb-1">Date: ${entry.date} (Logged: ${new Date(entry.timestamp).toLocaleDateString()})</p>
+                                <p class="text-gray-400 text-sm mb-2">Serving: ${entry.servingSize || '1 serving'}</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="nutri-badge bg-gray-800 px-2 py-1">${entry.calories} kcal</span>
+                                    <span class="nutri-badge bg-gray-800 px-2 py-1">Protein: ${entry.protein}g</span>
+                                    <span class="nutri-badge bg-gray-800 px-2 py-1">Carbs: ${entry.carbs}g</span>
+                                    <span class="nutri-badge bg-gray-800 px-2 py-1">Fat: ${entry.fat}g</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `).join('');
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+                historyEntries.innerHTML = `<div class="text-center py-8 text-red-400"><p>Error loading history: ${error.message}</p></div>`;
             }
         }
         
