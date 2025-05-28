@@ -178,7 +178,7 @@ Try entering:
 ## 🙌 Author
 
 Made with ❤️ by [@vicky0619](https://github.com/vicky0619)  
-Gemini integration by ChatGPT 💬
+
 
 ---
 
