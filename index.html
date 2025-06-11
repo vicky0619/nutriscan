@@ -456,7 +456,7 @@
                     previewImage.src = event.target.result;
                     previewImage.classList.remove('hidden');
                     placeholderContent.classList.add('hidden');
-                    analyzeFood(base64Image, null);
+                    analyzeFood(event.target.result, null);
                 };
                 reader.readAsDataURL(file);
             }
